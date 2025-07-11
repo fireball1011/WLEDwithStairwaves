@@ -4842,41 +4842,41 @@ static const char _data_FX_MODE_FLOWSTRIPE[] PROGMEM = "Flow Stripe@Hue speed,Ef
 //  Water Wave Sound        //
 //////////////////////////////
 uint16_t mode_water_wave_sound(void) {
-  um_data_t *um_data = getAudioData();
-  uint8_t samplePeak = *(uint8_t*)um_data->u_data[3];
+  um_data_t* um_data   = getAudioData();
+  uint8_t    samplePeak = *(uint8_t*)um_data->u_data[3];
 
-  constexpr uint16_t range = 75;       // width of wave in each direction
-  uint16_t center       = SEGLEN / 2;  // center of strip
+  const uint16_t radius = 75;            // width of wave in each direction
+  const uint16_t center = SEGLEN / 2;    // strip center
 
   if (SEGENV.call == 0) {
     SEGENV.step = 0;
-    SEGENV.aux0 = range + (SEGLEN >> 1) + 1; // wave inactive
+    SEGENV.aux0 = radius + (SEGLEN >> 1) + 1; // wave inactive
   }
 
-  // background based on aurora palette movement
-  SEGENV.step += (SEGMENT.speed >> 1) + 1; // slower background
+  // moving aurora-style background
+  SEGENV.step += (SEGMENT.speed >> 1) + 1;
   uint16_t t = SEGENV.step;
   for (uint16_t i = 0; i < SEGLEN; i++) {
     uint8_t index = ((i * 255) / SEGLEN + (t >> 3)) & 0xFF;
-    uint8_t bri = sin8_t(i * 8 + t);
-    SEGMENT.setPixelColor(i, SEGMENT.color_from_palette(index, false, PALETTE_SOLID_WRAP, 0, bri));
+    uint8_t bri   = sin8_t(i * 8 + t);
+    SEGMENT.setPixelColor(i,
+      SEGMENT.color_from_palette(index, false, PALETTE_SOLID_WRAP, 0, bri));
   }
 
-  if (samplePeak && SEGENV.aux0 > range + (SEGLEN >> 1)) {
-    SEGENV.aux0 = 0; // trigger wave
+  if (samplePeak && SEGENV.aux0 > radius + (SEGLEN >> 1)) {
+    SEGENV.aux0 = 0;                // start wave
   }
 
-  if (SEGENV.aux0 <= range + (SEGLEN >> 1)) {
-    uint16_t distMax = (SEGLEN >> 1) + range;
-    uint8_t amplitude = 255 - (SEGENV.aux0 * 255 / distMax);
+  if (SEGENV.aux0 <= radius + (SEGLEN >> 1)) {
+    uint16_t distMax   = (SEGLEN >> 1) + radius;
+    uint8_t  amplitude = 255 - (SEGENV.aux0 * 255 / distMax);
 
     for (uint16_t i = 0; i < SEGLEN; i++) {
-      int16_t dist = abs((int16_t)i - (int16_t)center);
-      if (dist >= SEGENV.aux0 && dist <= SEGENV.aux0 + range) {
-        uint16_t local = dist - SEGENV.aux0;
-        uint8_t bright = (uint8_t)((uint32_t)amplitude * (range - local) / range);
-        // create a "hole" at start and end for better visibility
-        if (local < 2 || local > range - 2) {
+      uint16_t dist = abs((int16_t)i - (int16_t)center);
+      if (dist >= SEGENV.aux0 && dist <= SEGENV.aux0 + radius) {
+        uint16_t local  = dist - SEGENV.aux0;
+        uint8_t  bright = (uint32_t)amplitude * (radius - local) / radius;
+        if (local < 2 || local > radius - 2) {
           SEGMENT.setPixelColor(i, BLACK);
         } else {
           SEGMENT.setPixelColor(i, color_blend(SEGMENT.getPixelColor(i), WHITE, bright));
@@ -4884,7 +4884,7 @@ uint16_t mode_water_wave_sound(void) {
       }
     }
 
-    SEGENV.aux0 += 1 + (SEGMENT.speed >> 6); // slower wave progress
+    SEGENV.aux0 += 1 + (SEGMENT.speed >> 6); // wave progress
   }
 
   return FRAMETIME;
