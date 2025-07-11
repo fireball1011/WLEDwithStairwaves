@@ -4838,6 +4838,60 @@ uint16_t mode_FlowStripe(void) {
 static const char _data_FX_MODE_FLOWSTRIPE[] PROGMEM = "Flow Stripe@Hue speed,Effect speed;;!;pal=11";
 
 
+//////////////////////////////
+//  Water Wave Sound        //
+//////////////////////////////
+uint16_t mode_water_wave_sound(void) {
+  um_data_t* um_data   = getAudioData();
+  uint8_t    samplePeak = *(uint8_t*)um_data->u_data[3];
+
+  const uint16_t radius = 75;            // width of wave in each direction
+  const uint16_t center = SEGLEN / 2;    // strip center
+
+  if (SEGENV.call == 0) {
+    SEGENV.step = 0;
+    SEGENV.aux0 = radius + (SEGLEN >> 1) + 1; // wave inactive
+  }
+
+  // moving aurora-style background
+  SEGENV.step += (SEGMENT.speed >> 1) + 1;
+  uint16_t t = SEGENV.step;
+  for (uint16_t i = 0; i < SEGLEN; i++) {
+    uint8_t index = ((i * 255) / SEGLEN + (t >> 3)) & 0xFF;
+    uint8_t bri   = sin8_t(i * 8 + t);
+    SEGMENT.setPixelColor(i,
+      SEGMENT.color_from_palette(index, false, PALETTE_SOLID_WRAP, 0, bri));
+  }
+
+  if (samplePeak && SEGENV.aux0 > radius + (SEGLEN >> 1)) {
+    SEGENV.aux0 = 0;                // start wave
+  }
+
+  if (SEGENV.aux0 <= radius + (SEGLEN >> 1)) {
+    uint16_t distMax   = (SEGLEN >> 1) + radius;
+    uint8_t  amplitude = 255 - (SEGENV.aux0 * 255 / distMax);
+
+    for (uint16_t i = 0; i < SEGLEN; i++) {
+      uint16_t dist = abs((int16_t)i - (int16_t)center);
+      if (dist >= SEGENV.aux0 && dist <= SEGENV.aux0 + radius) {
+        uint16_t local  = dist - SEGENV.aux0;
+        uint8_t  bright = (uint32_t)amplitude * (radius - local) / radius;
+        if (local < 2 || local > radius - 2) {
+          SEGMENT.setPixelColor(i, BLACK);
+        } else {
+          SEGMENT.setPixelColor(i, color_blend(SEGMENT.getPixelColor(i), WHITE, bright));
+        }
+      }
+    }
+
+    SEGENV.aux0 += 1 + (SEGMENT.speed >> 6); // wave progress
+  }
+
+  return FRAMETIME;
+}
+static const char _data_FX_MODE_WATER_WAVE_SOUND[] PROGMEM = "Water Wave Sound@;;";
+
+
 #ifndef WLED_DISABLE_2D
 ///////////////////////////////////////////////////////////////////////////////
 //***************************  2D routines  ***********************************
@@ -10767,6 +10821,7 @@ void WS2812FX::setupEffectData() {
   addEffect(FX_MODE_FLOWSTRIPE, &mode_FlowStripe, _data_FX_MODE_FLOWSTRIPE);
   addEffect(FX_MODE_WAVESINS, &mode_wavesins, _data_FX_MODE_WAVESINS);
   addEffect(FX_MODE_ROCKTAVES, &mode_rocktaves, _data_FX_MODE_ROCKTAVES);
+  addEffect(FX_MODE_WATER_WAVE_SOUND, &mode_water_wave_sound, _data_FX_MODE_WATER_WAVE_SOUND);
 
   // --- 2D  effects ---
 #ifndef WLED_DISABLE_2D
